@@ -6,7 +6,10 @@ const shopSchema = new mongoose.Schema({
     password:{type:String, required:true},
     email:{type:String},
 
-    address:[],
+    address:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"address"
+    },
     
     rating:{type:Number},
     refreshToken:{type:String}

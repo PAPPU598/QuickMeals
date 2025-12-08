@@ -6,7 +6,10 @@ const userSchema = new mongoose.Schema({
     email:{type:String},
     username:{type:String},
 
-    address:[],
+    address:[{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"address"
+    }],
     
     refreshToken:{type:String}
 
