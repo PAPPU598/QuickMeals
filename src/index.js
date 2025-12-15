@@ -21,3 +21,9 @@ connectDB().then(()=>{
 app.get('/health-check',(req,res)=>{
     res.send(`Server is live`);
 })
+
+const userRoutes = require('./routes/user.routes')
+app.use('/user',userRoutes)
+
+const shopRoutes = require('./routes/shop.routes')
+app.use('/shop',shopRoutes)

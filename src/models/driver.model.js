@@ -12,5 +12,5 @@ const driverSchema = new mongoose.Schema({
 
 },{timestamps:true});
 
-const driver = mongoose.model("user", driverSchema);
+const driver = mongoose.model("driver", driverSchema);
 module.exports = driver;
