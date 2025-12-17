@@ -66,7 +66,9 @@ shopSchema.methods.generateRefreshToken = function(){
     return jwt.sign(
         {
             _id:this._id,
-            shopname:this.shopname
+            shopname:this.shopname,
+            email:this.email,
+            role:"shop"
         },
         process.env.JWT_REFRESH_SECRET_KEY,
         {

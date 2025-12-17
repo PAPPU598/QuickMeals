@@ -7,7 +7,8 @@ const {
     getItem,
     getAllItems,
     editItem,
-    removeItem
+    removeItem,
+    searchItembyName
 } = require('../controllers/item.controller')
 
 router.post('/add-item',jwtAuthMiddleware,addItem)
@@ -16,5 +17,6 @@ router.get('/get-all-items',jwtAuthMiddleware,getAllItems)
 router.patch('/edit-item',jwtAuthMiddleware,editItem)
 router.delete('/remove-item/:_id',jwtAuthMiddleware,removeItem)
 
+router.get('/search-item/:itemNameForSearch',searchItembyName)
 
 module.exports = router
