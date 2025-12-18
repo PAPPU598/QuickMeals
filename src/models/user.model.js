@@ -4,6 +4,18 @@ const jwt = require('jsonwebtoken');
 const aggregatePaginate = require('mongoose-aggregate-paginate-v2');
 require('dotenv').config()
 
+const cartItemSchema = new mongoose.Schema({
+    _id:false,
+    item:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"item"
+    },
+    quantity:{ 
+        type:Number, 
+        default:1
+    }
+})
+
 const userSchema = new mongoose.Schema({
     phone:{type:String, required: true, unique: true},
     password:{type:String, required:true},
@@ -15,10 +27,7 @@ const userSchema = new mongoose.Schema({
         ref:"address"
     }],
 
-    cart:[{
-        type:mongoose.Schema.Types.ObjectId,
-        ref:"item"
-    }],
+    cart:[cartItemSchema],
     
     refreshToken:{type:String}
 

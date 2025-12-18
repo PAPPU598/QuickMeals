@@ -25,6 +25,9 @@ app.get('/health-check',(req,res)=>{
 const userAuthRoutes = require('./routes/user.auth.routes')
 app.use('/user/auth',userAuthRoutes)
 
+const userRoutes = require('./routes/user.routes')
+app.use('/user',userRoutes)
+
 const shopAuthRoutes = require('./routes/shop.auth.routes')
 app.use('/shop/auth',shopAuthRoutes)
 
