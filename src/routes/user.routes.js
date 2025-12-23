@@ -3,13 +3,22 @@ const router = express.Router();
 const jwtAuthMiddleware = require('../middlewares/jwtauth.middleware');
 
 const {
-    addToCart,
-    getCart,
-    removeFromCart
-} = require('../controllers/user.controller')
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    getProfile,
+    changePassword,
+    updateProfile,
+    
+} = require('../controllers/user.controller');
 
-router.put('/add-to-cart',jwtAuthMiddleware,addToCart)
-router.get('/get-cart',jwtAuthMiddleware,getCart)
-router.delete('/remove-from-cart/:itemId',jwtAuthMiddleware,removeFromCart)
+router.post('/register',registerUser);
+router.post('/login',loginUser);
+router.post('/logout',jwtAuthMiddleware, logoutUser);
+router.post('/refresh-access-token', refreshAccessToken);
+router.get('/get-profile', jwtAuthMiddleware, getProfile);
+router.post('/change-password', jwtAuthMiddleware, changePassword);
+router.patch('/update-profile', jwtAuthMiddleware, updateProfile);
 
 module.exports = router

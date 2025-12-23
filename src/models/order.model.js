@@ -44,5 +44,5 @@ const orderSchema = new mongoose.Schema({
 
 },{timestamps:true});
 
-const order = mongoose.model("payment", orderSchema);
+const order = mongoose.model("order", orderSchema);
 module.exports = order;

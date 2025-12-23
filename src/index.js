@@ -22,11 +22,11 @@ app.get('/health-check',(req,res)=>{
     res.send(`Server is live`);
 })
 
-const userAuthRoutes = require('./routes/user.auth.routes')
-app.use('/user/auth',userAuthRoutes)
+const userAuthRoutes = require('./routes/user.routes')
+app.use('/user',userAuthRoutes)
 
-const userRoutes = require('./routes/user.routes')
-app.use('/user',userRoutes)
+const cartRoutes = require('./routes/cart.routes')
+app.use('/cart',cartRoutes)
 
 const shopAuthRoutes = require('./routes/shop.auth.routes')
 app.use('/shop/auth',shopAuthRoutes)
@@ -42,3 +42,6 @@ app.use('/address',addressRoutes)
 
 const driverRoutes = require('./routes/driver.routes')
 app.use('/driver',driverRoutes)
+
+const orderRoutes = require('./routes/order.routes')
+app.use('/order',orderRoutes)

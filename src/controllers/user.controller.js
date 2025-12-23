@@ -1,92 +1,185 @@
-const user = require('../models/user.model')
-const ApiError = require('../utils/ApiError')
-const ApiResponse = require('../utils/ApiResponse')
-const asyncHandler = require('../utils/asyncHandler')
+const user = require('../models/user.model');
+const jwt = require('jsonwebtoken');
+const asyncHandler = require('../utils/asyncHandler');
+require('dotenv').config();
 
-const addToCart = asyncHandler(async (req,res)=>{
-    const {itemId, quantity} = req.body
+const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+}
 
-    if(!itemId) return res.status(400).json(
-        new ApiError(400,`Item _id is required`)
-    )
+const registerUser = async (req,res)=>{
+    try{
+        const {username, phone, password} = req.body;
 
-    const findItem = await user.findOne({'cart.item':itemId})
-    
-    if(findItem){
-        await user.updateOne({'cart.item':itemId},{
-            $inc:{'cart.$.quantity':1}
+        if(!username && !phone) return res.status(400).json({error: 'username or phone is required'})
+        if(!password) return res.status(400).json({error: 'password is required'})
+
+        if(await user.findOne({
+            $or:[{username}, {phone}]
+        })){
+            return res.status(400).json({error: 'user already exists'})
+        } 
+        
+        const newuser = new user({
+            username:username || "",
+            password:password,
+            phone:phone || ""
         })
+
+        const saveuser = await newuser.save();
+        const createdUser = await user.findById(saveuser._id).select(
+            '-password -refreshToken -cart -address'
+        );
+
+        if(!createdUser) res.status(500).json({error: 'something went wrong while creating user'})
+
+        const accessToken = createdUser.generateAccessToken();
+        const refreshToken = createdUser.generateRefreshToken();
+
+        createdUser.refreshToken = refreshToken;
+        await createdUser.save();
+
+        return res.status(200)
+        .cookie("accessToken",accessToken,cookieOptions)
+        .cookie("refreshToken",refreshToken,cookieOptions)
+        .json({createdUser})
+
+    }catch(err){
+        res.status(500).json({error: 'Internal Server error'})
     }
+}
 
-    const newCartItem = {
-        item:itemId,
-        quantity:quantity
+const loginUser = async (req,res)=>{
+    try{
+        const {username, phone, password} = req.body;
+
+        if(!username && !phone) return res.status(400).json({error: 'username or email is required'});
+        if(!password) return res.status(400).json({error: 'password is required'});
+
+        const findUser = await user.findOne({
+            $or:[{username}, {phone}]
+        })
+
+        if(!findUser) return res.status(404).json({error: 'user does not exists'});
+        
+        const isMatch = await findUser.comparePassword(password);
+        if(!isMatch) return res.status(400).json({error: 'Incorrect Password'});
+
+        const accessToken = findUser.generateAccessToken();
+        const refreshToken = findUser.generateRefreshToken();
+
+        findUser.refreshToken = refreshToken;
+        await findUser.save({
+            validateBeforeSave:false
+        });
+
+        findUser.password = undefined;
+
+        return res.status(200)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
+        .json({ findUser, accessToken});
+
+    }catch(err){
+        res.status(500).json({error: 'Internal Server error'})
     }
+}
 
-    await req.user.cart.push(newCartItem)
-    await req.user.save()
+const logoutUser = async (req,res)=>{
+    try{
+        await user.findByIdAndUpdate(req.user?._id,{
+            $unset:{
+                refreshToken:1
+            },
+        },{new:true})
 
-    res.status(200).json(
-        new ApiResponse(200,`newCartItem`,`Item added to cart`)
-    )
-})
+        return res.status(200)
+        .clearCookie("accessToken", cookieOptions)
+        .clearCookie("refreshToken", cookieOptions)
+        .json({message:'User logged out'})
 
-const getCart = asyncHandler(async (req,res)=>{
-    const cartData = await user.aggregate([
-        {
-            $match: { _id:req.user?._id }
-        },
-        {
-            $project: { cart:1, _id:0 }
-        },
-        {
-            $unwind: { path: '$cart'}
-        },
-        {
-            $lookup: {
-                from: 'items',
-                localField: 'cart.item',
-                foreignField: '_id',
-                as:'itemDetails'
-            }
-        },
-        {
-            $addFields: {
-                quantity: { $add:'$cart.quantity'}
-            }
-        },
-        {
-            $unwind: { path: '$itemDetails'}
-        },
-        {
-            $project: {
-                cart:0,
-                'itemDetails.createdAt':0,
-                'itemDetails.updatedAt':0,
-                'itemDetails.__v':0,
-            }
+    }catch(err){
+        res.status(500).json({error: 'Internal Server error'})
+    }
+}
+
+const refreshAccessToken = async (req,res)=>{
+    try{
+        const auth = req.headers.authorization || req.cookie?.accessToken;
+        if(!auth) return res.status(401).json({error:'Unauthorized'});
+
+        const refreshTokenFromUser = auth.split(' ')[1];
+        const decoded = jwt.verify(refreshTokenFromUser, process.env.JWT_REFRESH_SECRET_KEY);
+        
+        const User = await user.findById(decoded._id).select('-password');
+        if(!User) return res.status(401).json({err:'Invalid token'});
+        
+        const newAccessToken = User.generateAccessToken();
+        const newRefreshToken = User.generateRefreshToken();
+
+        User.refreshToken = newRefreshToken;
+        await User.save();
+
+        res.status(200)
+        .cookie('accessToken',newAccessToken,cookieOptions)
+        .cookie('refreshToken',newRefreshToken,cookieOptions)
+        .json({message:'Access token refreshed', newAccessToken, newRefreshToken})
+
+    }catch(err){
+        res.status(401).json({err:'error'})
+    }
+}
+
+const changePassword = async(req,res)=>{
+    try{
+        const {oldPassword, newPassword, confirmPassword} = req.body;
+
+        if(!oldPassword || !newPassword || !confirmPassword) return res.status(400).json({error:'all fields are required'});
+
+        const findUser = await user.findById(req.user?._id);
+        if(!findUser) res.status(404).json({error:'user not found'});
+
+        if(!await findUser.comparePassword(oldPassword)){
+            return res.status(400).json({error:'Incorrect current password'});
         }
-    ])
 
-    return res.status(200).json(
-        new ApiResponse(200,cartData,`cart fetched successfully`
-    ))
+        if(newPassword!==confirmPassword) return res.status(400).json({error:'confirm password accurately'});
+
+        findUser.password = newPassword;
+        await findUser.save();
+
+        res.status(200).json({message: 'password changed successfully'});
+
+    }catch(err){
+        res.status(500).json({err:'Internal Server error'});
+    }
+}
+
+const getProfile = asyncHandler(async (req,res)=>{
+    const findUser = await user.findById(req.user._id).select(
+        '-password -refreshToken'
+    );
+
+    return res.status(200).json({findUser})
 })
 
-const removeFromCart = asyncHandler(async (req,res)=>{
-    const { itemId } = req.params
-    
-    await user.updateOne({_id:req.user?._id},{
-        $pull:{cart: {item:itemId} }
-    })
-    
-    res.status(200).json(
-        new ApiResponse(200,null,`item removed from cart`  
-    ))
+const updateProfile = asyncHandler(async (req,res)=>{
+    const newData = req.body;
+
+    const response = await user.findByIdAndUpdate(req.user?._id,newData,{
+        new:true,
+    }).select('-password -refreshToken');
+
+    res.status(200).json({response, message:'user profile updated successfully'});
 })
 
 module.exports = {
-    addToCart,
-    getCart,
-    removeFromCart
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    getProfile,
+    changePassword,
+    updateProfile,
 }

@@ -17,7 +17,7 @@ const registerShop = async (req,res)=>{
         if(await shop.findOne({
             $or:[{shopname}, {phone}]
         })){
-            return res.status(400).json({error: 'user already exists'})
+            return res.status(400).json({error: 'shop already exists'})
         } 
         
         const newuser = new shop({
@@ -28,7 +28,7 @@ const registerShop = async (req,res)=>{
 
         const saveuser = await newuser.save();
         const createdUser = await shop.findById(saveuser._id).select(
-            '-password -refreshToken -cart -address'
+            '-password -refreshToken -address'
         );
 
         if(!createdUser) res.status(500).json({error: 'something went wrong while creating user'})
@@ -159,11 +159,10 @@ const changePassword = async(req,res)=>{
 const getProfile = async (req,res)=>{
     try{
         const findUser = await shop.findById(req.user._id).select(
-            '-password -refreshToken -images -albums -favImages'
+            '-password -refreshToken'
         );
 
-        return res.status(200)
-        .json({findUser})
+        return res.status(200).json({findUser})
 
     }catch(err){
         res.status(500).json({error: 'Error while fetching user info'})
